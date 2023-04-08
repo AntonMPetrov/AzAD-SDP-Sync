@@ -1,0 +1,8 @@
+{
+    "service desk api url": "https://sdp.domain.com",
+    "service desk api key": "406E4F1E-C64A-4266-B527-8A8D5415ABF4",
+    "sync errors log file": "E:\\Program Files\\ME-Integration\\logs\\sync-errors.log",
+	"AAD Cred file": "E:\\Program Files\\ME-Integration\\me-integration.cred",
+	"SDP DB Server": "DBServer",
+	"SDP DB Name": "servicedesk"
+}
