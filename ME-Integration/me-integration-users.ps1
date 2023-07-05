@@ -29,7 +29,9 @@ foreach ($sdpAccount in $sdpAccounts)
 
     foreach ($aadUser in $sdpAccount.AADGroups.Split(";") | %{Get-AADUsers -GroupName $_} )
     {
-        #AADUsers with empty emails should be skipped
+        $sdpUser=$null
+        
+        #AADUsers with enmpty emails should be skipped
         if ([string]::IsNullOrWhiteSpace($aadUser.Mail))
         {
             Write-Verbose "The user $($aadUser.DisplayName) with ObjectID: $($aadUser.ObjectId) has empty email. User skipped."
@@ -39,10 +41,11 @@ foreach ($sdpAccount in $sdpAccounts)
             Write-Verbose "The user $($aadUser.DisplayName) with ObjectID: $($aadUser.ObjectId) has empty Department, UsageLocation and CompanyName. This is probably a service account. Skipped"
         }
         else
+        
         {
             try
-            {
-                $sdpUser  = Get-SdpUser -userEmail $aadUser.Mail
+            { 
+                $sdpUser  = Get-SdpUserSQL -userEmail $aadUser.Mail -AADUserID $aadUser.ObjectId
             }
             catch
             {

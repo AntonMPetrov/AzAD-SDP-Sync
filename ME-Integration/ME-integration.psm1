@@ -24,12 +24,84 @@ function Get-AADUsers()
         [string] $GroupName
     )
     $group = Get-AzureADGroup -SearchString $GroupName
+    if (-not [String]::IsNullOrWhiteSpace($group))
+    {
 
-    $members = Get-AzureADGroupMember -ObjectId $group.ObjectId -All:$true
+        $members = Get-AzureADGroupMember -ObjectId $group.ObjectId -All:$true
+    }
+    else
+    { 
+        $members = $null
+    }
     return $members
 }
 
 
+
+function Get-SdpUserSQL(){
+    Param
+    (
+        [Parameter(Mandatory=$true, Position=0)]
+        [string] $userEmail,
+        [Parameter(Position=1)]
+        [string] $AADUserID
+    )
+    if ([String]::IsNullOrWhiteSpace($userEmail)) {throw "Empty Email"}
+    
+    $header = @{authtoken=$config.'service desk api key'}
+    
+    $query = "
+    select
+	    aaauser.USER_ID
+    from aaauser
+        inner join AaaLogin on aaauser.USER_ID = aaalogin.USER_ID
+        left join AaaUserContactInfo on aaauser.USER_ID = AaaUserContactInfo.USER_ID
+        left join AaaContactInfo on AaaUserContactInfo.CONTACTINFO_ID = AaaContactInfo.CONTACTINFO_ID
+        left join UserAdditionalFields on aaauser.USER_ID = UserAdditionalFields.INSTANCE_ID
+	where Aaalogin.name = '$($userEmail)' or AaaContactInfo.EMAILID = '$($userEmail)' or ('$($AADUserID)' is not null and [UserAdditionalFields].UDF_CHAR3 = '$($AADUserID)')
+    "
+    try
+    {
+        $SdpUserId = Invoke-Sqlcmd -ServerInstance $config.'SDP DB Server' -Database $config.'SDP DB Name' -Query $query -TrustServerCertificate
+    }
+    catch
+    {
+         $errorMessage = $_
+        Write-Error $errorMessage
+        $logValue = "{0}`t {1}`t {2}" -f (Get-Date).ToString("dd-MM-yyyy hh:mm:ss.mm"), $errorMessage
+        Add-Content -Path $config.'sync errors log file' -Value $logValue
+        throw $errorMessage
+    }
+
+    if ($SdpUserId -is [system.array] )
+    {
+        $errorMessage = "There are more than one user in SDP wth the same email $($userEmail) or AadUserID $($AadUserID)"
+        throw $errorMessage
+    }
+
+    if ($null -ne $SdpUserId.USER_ID)
+    {
+        Write-Verbose "User with email '$($userEmail)' found. SDP id is $($SdpUserId.USER_ID)"   
+        $url = $config.'service desk api url' + "/api/v3/users/$($SdpUserId.USER_ID)"
+        try
+        {
+            $response = Invoke-RestMethod -Uri $url -Headers $header  -Method get 
+            $sdpUser = $response.user
+        }
+        catch
+        {
+            $errorMessage = $_
+            Write-Error $errorMessage
+            $logValue = "{0}`t SdpUser: {1}`t {2}" -f (Get-Date).ToString("dd-MM-yyyy hh:mm:ss.mm"), $sdpUser.id, $errorMessage
+            Add-Content -Path $config.'sync errors log file' -Value $logValue
+        }
+    }
+    else {
+        Write-Verbose "User with email '$userEmail' or AADUser ID '$($AadUserID)' not found."
+    }
+
+    return $sdpUser
+}
 
 function Get-SdpUser(){
     Param
@@ -129,6 +201,10 @@ function Compare-Users()
             $updateUser.user | Add-Member @{password = ([System.Web.Security.Membership]::GeneratePassword(10,2))}
 
         }
+        if ($aadUser.Mail -ne $sdpUser.email_id)
+        {
+            $updateUser.user | Add-Member @{email_id = $aadUser.Mail}   
+        }
         if($aadUser.GivenName -ne $sdpUser.first_name) 
         {
             $updateUser.user | Add-Member @{first_name = $aadUser.GivenName}   
@@ -143,11 +219,25 @@ function Compare-Users()
         }
         if ($aadUser.TelephoneNumber -ne $sdpUser.phone)
         {
-            $updateUser.user | Add-Member @{phone = $aadUser.TelephoneNumber}
+            if (-not [string]::IsNullOrWhiteSpace($aadUser.TelephoneNumber))
+            {
+                $updateUser.user | Add-Member @{phone = $aadUser.TelephoneNumber.Substring(0,30)}
+            }
+            else 
+            {
+                $updateUser.user | Add-Member @{phone = $null}
+            }
         }
         if ($aadUser.Mobile -ne $sdpUser.mobile)
         {
-            $updateUser.user | Add-Member @{mobile = $aadUser.Mobile}
+            if (-not [string]::IsNullOrWhiteSpace($aadUser.Mobile))
+            {
+                $updateUser.user | Add-Member @{mobile = $aadUser.Mobile.Substring(0,30)}
+            }
+            else
+            {
+                $updateUser.user | Add-Member @{mobile = $null}
+            }
         }
         if ($aadUser.JobTitle -ne $sdpUser.jobtitle)
         {
@@ -266,9 +356,15 @@ function New-SdpUser()
     #Display Name
     $createUser.user | Add-Member @{name=$AzureUser.DisplayName}
     #Phone
-    $createUser.user | Add-Member @{phone=$AzureUser.TelephoneNumber}
+    if (-not [string]::IsNullOrWhiteSpace($AzureUser.TelephoneNumber))
+    {
+        $createUser.user | Add-Member @{phone=$AzureUser.TelephoneNumber.SubString(0,30)}
+    }
     #Mobile
-    $createUser.user | Add-Member @{mobile=$AzureUser.Mobile}
+    if (-not [string]::IsNullOrWhiteSpace($AzureUser.Mobile))
+    {
+        $createUser.user | Add-Member @{mobile=$AzureUser.Mobile.Substring(0,30)}
+    }
     #JobTitle
     $createUser.user | Add-Member @{jobtitle=$AzureUser.JobTitle}
     #Secondary Emails
@@ -417,6 +513,7 @@ Export-ModuleMember -Function Get-SdpAccounts
 Export-ModuleMember -Function Update-SdpUser
 Export-ModuleMember -Function Compare-Users
 Export-ModuleMember -Function Get-SdpUser
+Export-ModuleMember -Function Get-SdpUserSQL
 Export-ModuleMember -Function Get-AADCredeitials
 Export-ModuleMember -Function Get-AADUsers
 Export-ModuleMember -Function getConfig
