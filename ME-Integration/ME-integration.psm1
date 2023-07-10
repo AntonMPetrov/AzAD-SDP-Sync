@@ -62,7 +62,7 @@ function Get-SdpUserSQL(){
     "
     try
     {
-        $SdpUserId = Invoke-Sqlcmd -ServerInstance $config.'SDP DB Server' -Database $config.'SDP DB Name' -Query $query -TrustServerCertificate
+        $SdpUserId = Invoke-Sqlcmd -ServerInstance $config.'SDP DB Server' -Database $config.'SDP DB Name' -Query $query
     }
     catch
     {
@@ -83,17 +83,27 @@ function Get-SdpUserSQL(){
     {
         Write-Verbose "User with email '$($userEmail)' found. SDP id is $($SdpUserId.USER_ID)"   
         $url = $config.'service desk api url' + "/api/v3/users/$($SdpUserId.USER_ID)"
-        try
+        while($true)
         {
-            $response = Invoke-RestMethod -Uri $url -Headers $header  -Method get 
-            $sdpUser = $response.user
-        }
-        catch
-        {
-            $errorMessage = $_
-            Write-Error $errorMessage
-            $logValue = "{0}`t SdpUser: {1}`t {2}" -f (Get-Date).ToString("dd-MM-yyyy hh:mm:ss.mm"), $sdpUser.id, $errorMessage
-            Add-Content -Path $config.'sync errors log file' -Value $logValue
+            try
+            {
+                $response = Invoke-RestMethod -Uri $url -Headers $header  -Method get 
+                $sdpUser = $response.user
+                break
+            }
+            catch
+            {
+                $errorMessage = $_
+                Write-Error $errorMessage
+                $logValue = "{0}`t SdpUser: {1}`t {2}" -f (Get-Date).ToString("dd-MM-yyyy hh:mm:ss.mm"), $sdpUser.id, $errorMessage
+                Add-Content -Path $config.'sync errors log file' -Value $logValue
+                if ($errorMessage -contains "URL blocked as maximum access limit for the page is exceeded") 
+                {
+                    Start-Sleep -Seconds 30
+                    continue
+                }
+                break
+            }
         }
     }
     else {
@@ -459,7 +469,7 @@ where account.ATTRIBUTE_312 is not null"
     
     try
     {
-        $SdpAccounts = Invoke-Sqlcmd -ServerInstance $config.'SDP DB Server' -Database $config.'SDP DB Name' -Query $query -TrustServerCertificate
+        $SdpAccounts = Invoke-Sqlcmd -ServerInstance $config.'SDP DB Server' -Database $config.'SDP DB Name' -Query $query
     }
     catch
     {
