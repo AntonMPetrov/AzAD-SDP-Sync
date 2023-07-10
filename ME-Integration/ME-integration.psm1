@@ -99,7 +99,7 @@ function Get-SdpUserSQL(){
                 Add-Content -Path $config.'sync errors log file' -Value $logValue
                 if ($errorMessage -contains "URL blocked as maximum access limit for the page is exceeded") 
                 {
-                    Start-Sleep -Seconds 30
+                    Start-Sleep -Seconds $config.'sleep time'
                     continue
                 }
                 break

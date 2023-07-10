@@ -30,6 +30,11 @@ foreach ($sdpAccount in $sdpAccounts)
     foreach ($aadUser in $sdpAccount.AADGroups.Split(";") | %{Get-AADUsers -GroupName $_} )
     {
         $sdpUser=$null
+        $count ++
+        if (($count % $config.'batch size') -eq 0) {
+            Write-Verbose $("Pausing for " + $config.'sleep time' + " seconds")
+            Start-Sleep -Seconds $config.'sleep time'
+        }
         
         #AADUsers with enmpty emails should be skipped
         if ([string]::IsNullOrWhiteSpace($aadUser.Mail))

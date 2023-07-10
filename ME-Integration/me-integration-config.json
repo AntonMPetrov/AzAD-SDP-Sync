@@ -4,5 +4,7 @@
     "sync errors log file": "E:\\Program Files\\ME-Integration\\logs\\sync-errors.log",
 	"AAD Cred file": "E:\\Program Files\\ME-Integration\\me-integration.cred",
 	"SDP DB Server": "DBServer",
-	"SDP DB Name": "servicedesk"
+	"SDP DB Name": "servicedesk",
+    "batch size": 25,
+    "sleep time": 30
 }
