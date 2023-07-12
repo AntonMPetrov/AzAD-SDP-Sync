@@ -99,6 +99,7 @@ function Get-SdpUserSQL(){
                 Add-Content -Path $config.'sync errors log file' -Value $logValue
                 if ($errorMessage -contains "URL blocked as maximum access limit for the page is exceeded") 
                 {
+                    Write-Verbose $("Pausing for " + $config.'sleep time' + " seconds")
                     Start-Sleep -Seconds $config.'sleep time'
                     continue
                 }
@@ -200,6 +201,7 @@ function Compare-Users()
     {
         Write-Verbose "The user $($sdpUser.email_id) will be blocked in SDP"
         $updateUser.user | Add-Member @{login_name = $null}
+        $updateUser.user | Add-Member @{email_id = $null}
     }
     else
     {
