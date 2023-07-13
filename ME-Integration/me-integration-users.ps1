@@ -27,7 +27,7 @@ foreach ($sdpAccount in $sdpAccounts)
 {
     Write-Verbose "Fetching members of $($sdpAccount.Account) groups"
 
-    foreach ($aadUser in $sdpAccount.AADGroups.Split(";") | %{Get-AADUsers -GroupName $_} )
+    foreach ($aadUser in $sdpAccount.AADGroups.Split(";") | ForEach-Object{Get-AADUsers -GroupName $_} )
     {
         $sdpUser=$null
         $count ++

@@ -144,7 +144,7 @@ function Get-SdpUser(){
     }
 
     Write-Verbose "Response is $response"
-    $sdpUser = $response| Select -ExpandProperty users
+    $sdpUser = $response| Select-Object -ExpandProperty users
 
     <#
         if we found more than one SDPUuser with the same email - throw exception and go to next user,
@@ -269,8 +269,8 @@ function Compare-Users()
         #if SDP user not in current Account - let's move him to it
         if ($SdpUser.account.id -ne $SdpAccount.AccountId -and $SdpUser.is_technician -ne $true)
         {
-            $updateUser.user | Add-Member @{department = New-Object -TypeName psobject}
-            $updateUser.user.department | Add-Member @{id = $SdpAccount.DEPTID}
+            $message = "User $($SdpUser.login_name) has additional membership in $($SdpAccount.Account)"
+            Write-Warning $message
         }
     }
     
