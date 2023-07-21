@@ -7,7 +7,7 @@ AD users are matched with SDP users based on the AD user's email address and the
 # Updates
 - 13.07.2023
 
-  If a User has membership in several Accounts we will only log warning about this cas (instead of moving between accounts)
+  If a User has membership in several Accounts we will only log warning about this case (instead of moving between accounts)
 - 12.07.2023
 
   When a User is Disabled in AAD we will clear login and email-id attributes in SDP to avoid logging in
